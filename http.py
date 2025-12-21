@@ -63,9 +63,12 @@ Receive data from the socket. The return value is a bytes object representing th
 The maximum amount of data to be received at once is specified by bufsize. 
     """
     print(request)
+    file = open("index.html", 'r', encoding='utf-8')
 
     # Send HTTP response
-    response = 'HTTP/1.0 200 OK\n\n<h1>Hello World</h1>'
+    response = 'HTTP/1.0 200 OK\n\n' + file.read()
+
+    file.close()
     client_connection.sendall(response.encode())
     """
  socket.sendall(bytes[, flags])
