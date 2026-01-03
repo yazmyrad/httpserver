@@ -4,7 +4,7 @@ import os
 import threading
 from apidata import geo_data, weather_data
 import json
-
+import base64
 header_re = re.compile(r"(GET|POST) ([^ ]+) HTTP/", re.I)
 
 def status(code):
@@ -26,6 +26,19 @@ def response(code, data, mime = "text/plain", headers = None):
     res = "HTTP/1.1 %s\r\n%s\r\n\r\n%s"
     return res % (status(code), headers, data)
 
+def response_img(code, data, mime = 'image/x-icon', headers = None):
+    response_headers = {
+        "Server": "Python",
+        "Content-Type": mime,
+        "Content-Length": len(data),
+        "Connection": "close"
+    }
+    if headers:
+        response_headers.update(headers)
+    headers = "\r\n".join([ "%s: %s" % (k,v) for k, v in response_headers.items()])
+    res = "HTTP/1.1 %s\r\n%s\r\n\r\n"
+    return (res % (status(code), headers)).encode('utf-8') + data
+
 def mime(fname):
     ext = os.path.splitext(fname)[1]
     if ext == '.html':
@@ -39,7 +52,7 @@ def mime(fname):
     elif ext == '.css':
         return 'text/css'
     elif ext == '.ico':
-        return 'image/vnd.microsoft.icon'
+        return 'image/x-icon'
     elif fname == 'weather-content':
         return 'application/json'
     else:
@@ -61,21 +74,28 @@ def handler(socket):
     m = re.search(header_re, request[0])
     if m:
         root = os.getcwd()
-        print(root)
         matches = m.groups()
         if matches[1] == "/":
             fname = "index.html"
         else:
             fname = matches[1][1:]
-        print(fname)
         path = os.path.join(root, fname)
-        print(path)
+        
         if os.path.exists(path):
             if matches[0] == "HEAD":
                 content = ""
+                socket.send(response(200, content, mime(fname)).encode())
             else:
-                content = open(path, encoding='utf-8').read()
-            socket.send(response(200, content, mime(fname)).encode())
+                if fname == 'favicon.ico':
+                    content = open(path, "rb").read()
+                    print(fname)
+                    try:
+                        socket.send(response_img(200, content, mime(fname)))
+                    except Exception as e:
+                        print(e)
+                else:
+                    content = open(path, encoding='utf-8').read()
+                    socket.send(response(200, content, mime(fname)).encode())
         elif fname == 'weather-condition':
             geo = geo_data()
             content = None
