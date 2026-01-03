@@ -2,6 +2,8 @@ import socket
 import re
 import os
 import threading
+from apidata import geo_data, weather_data
+import json
 
 header_re = re.compile(r"(GET|POST) ([^ ]+) HTTP/", re.I)
 
@@ -36,6 +38,10 @@ def mime(fname):
         return 'image/png'
     elif ext == '.css':
         return 'text/css'
+    elif ext == '.ico':
+        return 'image/vnd.microsoft.icon'
+    elif fname == 'weather-content':
+        return 'application/json'
     else:
         return 'text/plain'
 
@@ -51,6 +57,7 @@ def get_request_data(socket):
 def handler(socket):
     global header_re
     request = get_request_data(socket)
+    print(request)
     m = re.search(header_re, request[0])
     if m:
         root = os.getcwd()
@@ -69,6 +76,15 @@ def handler(socket):
             else:
                 content = open(path, encoding='utf-8').read()
             socket.send(response(200, content, mime(fname)).encode())
+        elif fname == 'weather-condition':
+            geo = geo_data()
+            content = None
+            if geo != None:
+                content = weather_data(geo[0], geo[1])
+            if content != None: 
+                socket.send(response(200, json.dumps(content), mime(fname)).encode())
+            else:
+                socket.send(response(404, "404 Page Not found").encode())
         else:
             if matches[0] == "HEAD":
                 content = ""
@@ -89,16 +105,3 @@ if __name__ == '__main__':
             client_handler.start()
     except KeyboardInterrupt:
         server.close()
-
-
-"""
-r = requests.get(
-    "https://tenor.googleapis.com/v2/search?q=%s&key=%s&client_key=%s&limit=%s" % (search_term, apikey, ckey,  lmt))
-
-if r.status_code == 200:
-    # load the GIFs using the urls for the smaller GIF sizes
-    top_8gifs = json.loads(r.content)
-    print(top_8gifs)
-else:
-    top_8gifs = None
-"""
